@@ -1,19 +1,28 @@
+using Microsoft.AspNetCore.DataProtection;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDataProtection();
+
 var app = builder.Build();
 
-app.MapGet("/access", (HttpContext ctx) =>
+app.MapGet("/access", (HttpContext ctx, IDataProtectionProvider idp) =>
 {
+    var protector = idp.CreateProtector("auth-cookie");
+
     var authCookie = ctx.Request.Headers.Cookie.FirstOrDefault(x => x.StartsWith("auth="));
-    var authPayload = authCookie.Split("=").Last();
-    var payload = authCookie.Split(":");
+    var protectedPayload = authCookie.Split("=").Last();
+    var decryptedPayload = protector.Unprotect(protectedPayload);
+    var payload = decryptedPayload.Split(":");
     var key = payload[0];
     var value = payload[1];
     return value;
 });
 
-app.MapGet("/login", (HttpContext ctx) =>
+app.MapGet("/login", (HttpContext ctx, IDataProtectionProvider idp) =>
 {
-    ctx.Response.Headers["set-cookie"] = "auth=usr: john";
+    var protector = idp.CreateProtector("auth-cookie");
+    ctx.Response.Headers["set-cookie"] = $"auth={protector.Protect("usr: john")}";
     return "Ok";
 });
 
