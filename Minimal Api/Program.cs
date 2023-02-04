@@ -13,6 +13,29 @@ var app = builder.Build();
 
 app.UseAuthentication();
 
+app.Use((ctx, next) =>
+{
+    // bypass authorization for login purpose
+    if (ctx.Request.Path.StartsWithSegments("/login"))
+    {
+        return next();
+    }
+
+    if (!ctx.User.Identities.Any(x => x.AuthenticationType == AuthSchema))
+    {
+        ctx.Response.StatusCode = 401;
+        return Task.CompletedTask;
+
+    }
+    if (!ctx.User.HasClaim("role", "admin"))
+    {
+        ctx.Response.StatusCode = 403;
+        return Task.CompletedTask;
+    }
+
+    return next();
+});
+
 app.MapGet("/", () => {
     return "welcome to minimal api";
 });
@@ -24,17 +47,6 @@ app.MapGet("/access", (HttpContext ctx) =>
 
 app.MapGet("/isAdmin", (HttpContext ctx) =>
 {
-    if (!ctx.User.Identities.Any(x => x.AuthenticationType == AuthSchema))
-    {
-        ctx.Response.StatusCode = 401;
-        return false;
-
-    }
-    if (!ctx.User.HasClaim("role", "admin"))
-    {
-        ctx.Response.StatusCode = 403;
-        return false;
-    }
     return true;
 });
 
