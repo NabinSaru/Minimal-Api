@@ -9,6 +9,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAuthentication("cookie")
     .AddCookie(AuthSchema);
 
+builder.Services.AddAuthorization(builder =>
+{
+    builder.AddPolicy("administrator", policyBuilder =>
+    {
+        policyBuilder.RequireAuthenticatedUser()
+            .AddAuthenticationSchemes(AuthSchema)
+            .RequireClaim("role", "admin");
+    });
+});
+
 var app = builder.Build();
 
 app.UseAuthentication();
@@ -38,12 +48,12 @@ app.Use((ctx, next) =>
 
 app.MapGet("/", () => {
     return "welcome to minimal api";
-});
+}).AllowAnonymous();
 
 app.MapGet("/access", (HttpContext ctx) =>
 {
     return ctx.User.FindFirst("usr")?.Value ?? "empty";
-});
+}).RequireAuthorization("administrator");
 
 app.MapGet("/isAdmin", (HttpContext ctx) =>
 {
@@ -60,7 +70,6 @@ app.MapGet("/login", async (HttpContext ctx) =>
 
     await ctx.SignInAsync("cookie", user);
     return "Ok";
-});
+}).AllowAnonymous();
 
 app.Run();
-
